@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>情緒表達練習卡 - 專注練習</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 Inter 字體以確保良好的可讀性，並設置背景色 */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            touch-action: manipulation; /* 增強觸控響應 */
+        }
+        /* 讓按鈕在被點擊時有明顯回饋 */
+        .emotion-btn:active, .coping-btn:active, .draw-card-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+        }
+        /* 為主要區塊加上陰影和圓角 */
+        .card-container {
+            min-height: 400px;
+        }
+        .emotion-icon {
+            font-size: 4rem; /* 放大情緒圖示 */
+            line-height: 1; 
+        }
+        .coping-icon {
+            font-size: 2.5rem; /* 放大處理方法圖示 */
+            line-height: 1;
+        }
+        .text-huge {
+            font-size: 2.75rem; /* 標題文字 */
+            font-weight: 800;
+        }
+        /* 處理方法按鈕內部的圖片樣式 */
+        .coping-btn img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            /* 讓圖片在載入時有一個基本背景，避免閃爍 */
+            background-color: rgba(0, 0, 0, 0.1); 
+        }
+        /* 載入動畫 */
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .loading-spinner {
+          border: 4px solid rgba(255, 255, 255, 0.3);
+          border-top: 4px solid #fff;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+        }
+        .image-loading {
+            position: relative;
+        }
+        .image-loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        /* 撲克牌按鈕樣式 */
+        .draw-card-style {
+            background-color: #B91C1C; /* Red 700 */
+            border-bottom: 8px solid #7F1D1D; /* Red 900 for 3D effect */
+            transition: all 0.15s ease-in-out;
+        }
+        .draw-card-style:hover {
+            background-color: #DC2626; /* Red 600 */
+            transform: scale(1.05);
+        }
+        .draw-card-style:active {
+            border-bottom: 2px solid #7F1D1D;
+            transform: translateY(4px);
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 flex flex-col items-center min-h-screen">
+
+    <header class="w-full max-w-4xl text-center mb-6">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-700">心情練習小幫手</h1>
+        <p class="text-gray-600 mt-2 text-lg sm:text-xl">隨機抽牌，練習表達心情與處理情緒的方法</p>
+    </header>
+
+    <main class="w-full max-w-4xl bg-white p-6 sm:p-10 rounded-3xl shadow-2xl card-container flex flex-col items-center">
+
+        <!-- 畫面內容區 -->
+        <div id="app-content" class="w-full text-center">
+
+            <!-- 階段 0: 抽牌開始畫面 (撲克牌按鈕) -->
+            <div id="phase-0" class="flex flex-col items-center justify-center h-full space-y-8">
+                <p class="text-huge text-indigo-600 mb-8">準備好了嗎？</p>
+                <!-- 撲克牌風格按鈕 -->
+                <button onclick="drawCard()" class="draw-card-btn draw-card-style text-white text-4xl font-extrabold py-6 px-12 rounded-2xl shadow-2xl">
+                    <span class="text-6xl align-middle">🃏</span> 
+                    <span class="block mt-2">抽一張情境卡！</span>
+                </button>
+                <p class="text-gray-500 text-base mt-4">點擊上方大按鈕開始練習</p>
+            </div>
+
+            <!-- 階段 1: 情境展示與心情選擇 -->
+            <div id="phase-1" class="hidden space-y-6">
+                <p class="text-xl sm:text-2xl font-semibold text-gray-700">第 1 步：發生了什麼事？</p>
+                
+                <!-- 情境卡區域：新增圖片區塊 -->
+                <div class="bg-yellow-100 border-4 border-yellow-500 p-6 sm:p-8 rounded-2xl flex flex-col items-center space-y-4">
+                    <div class="flex items-center space-x-4">
+                        <span class="text-6xl" role="img" aria-label="情境">💡</span>
+                        <p class="text-huge text-yellow-800" id="scenario-text"></p>
+                    </div>
+                    
+                    <!-- 圖片顯示區：預設為佔位符，可被 AI 生成圖片替換 -->
+                    <div id="image-container" class="w-full max-w-sm h-auto mt-4 flex flex-col items-center">
+                        <img id="scenario-image" src="" alt="情境模擬圖片" class="w-full rounded-lg shadow-lg border-2 border-yellow-500" 
+                            onerror="this.onerror=null; this.src='https://placehold.co/400x200/AAAAAA/FFFFFF?text=圖片載入失敗+Load+Failed';" style="max-height: 200px; object-fit: cover;">
+                        
+                        <!-- AI 生成按鈕 -->
+                        <button id="generate-image-btn" onclick="generateScenarioImage()" class="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out text-sm flex items-center space-x-2">
+                            <span class="text-xl">🎨</span>
+                            <span>AI 生成情境圖</span>
+                        </button>
+                        <div id="loading-indicator" class="hidden mt-4 bg-indigo-500 text-white py-2 px-4 rounded-lg shadow-md flex items-center space-x-2">
+                            <div class="loading-spinner"></div>
+                            <span>圖片生成中...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-xl sm:text-2xl font-semibold text-gray-700 mt-8">第 2 步：你會有什麼樣的心情呢？</p>
+                <div id="emotion-selection" class="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
+                    <!-- 情緒按鈕將由 JS 動態生成 -->
+                </div>
+            </div>
+
+            <!-- 階段 2: 處理情緒的方法選擇 -->
+            <div id="phase-2" class="hidden space-y-6">
+                <p class="text-huge text-green-700" id="selected-emotion-text"></p>
+                <p class="text-xl sm:text-2xl font-semibold text-gray-700 mt-4">第 3 步：怎麼讓心情變好/平靜下來呢？</p>
+                <div id="coping-selection" class="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
+                    <!-- 處理方法按鈕將由 JS 動態生成 -->
+                </div>
+            </div>
+
+            <!-- 階段 3: 完成與回饋 (加入抽下一張卡的按鈕) -->
+            <div id="phase-3" class="hidden flex flex-col items-center justify-center space-y-8">
+                <div class="emotion-icon animate-bounce text-6xl">🎉</div> <!-- 改變為慶祝圖示 -->
+                <p class="text-huge text-teal-600">做得太棒了！</p>
+                <p class="text-xl sm:text-2xl font-semibold text-gray-700">你學會了表達心情和處理方法！</p>
+                <!-- 抽下一張卡按鈕，使用和 Phase 0 相似的設計 -->
+                <button onclick="resetApp()" class="draw-card-btn draw-card-style text-white text-3xl font-bold py-4 px-8 rounded-2xl shadow-xl">
+                    <span class="text-4xl align-middle">🃏</span> 
+                    <span class="block mt-1">再抽一張情境卡！</span>
+                </button>
+            </div>
+
+        </div>
+
+    </main>
+
+    <footer class="mt-8 text-center text-sm text-gray-400">
+        情緒練習小工具 | 設計給表達練習使用
+    </footer>
+
+    <script type="text/javascript">
+        // --- 應用程式資料與狀態 ---
+        const emotions = {
+            'HAPPY': {
+                name: '高興 😄',
+                color: 'bg-green-500 hover:bg-green-600',
+                methods: [
+                    // 肢體微動或靜態活動
+                    { icon: '🗣️', text: '說出來/請老師聽', imageUrl: 'https://placehold.co/100x100/3CB371/FFFFFF?text=說出來', aiPrompt: 'A simple, cute cartoon illustration of a child speaking or communicating with a teacher, happy expression. Flat design style.' }, 
+                    { icon: '🤩', text: '專心看喜歡的影片', imageUrl: 'https://placehold.co/100x100/3CB371/FFFFFF?text=看影片', aiPrompt: 'A simple cartoon of a child watching a tablet or TV screen with a focused, happy expression. Bright colors.' }, 
+                    { icon: '✋', text: '拍手/做喜歡的微動', imageUrl: 'https://placehold.co/100x100/3CB371/FFFFFF?text=拍手', aiPrompt: 'A close-up of two small hands clapping gently, simple cartoon style.' }, 
+                ],
+                bgClass: 'bg-green-200'
+            },
+            'SAD': {
+                name: '難過 😢',
+                color: 'bg-blue-500 hover:bg-blue-600',
+                methods: [
+                    // 靜態活動
+                    { icon: '🧸', text: '抱抱娃娃/抱枕', imageUrl: 'https://placehold.co/100x100/4169E1/FFFFFF?text=抱娃娃', aiPrompt: 'A child hugging a large, soft teddy bear while sitting down, simple and comforting cartoon style.' }, 
+                    { icon: '🎧', text: '聽輕鬆的音樂', imageUrl: 'https://placehold.co/100x100/4169E1/FFFFFF?text=聽音樂', aiPrompt: 'A simple cartoon of a child sitting quietly with headphones on, listening to music. Relaxing and soft colors.' }, 
+                    { icon: '💤', text: '蓋毯子休息一下', imageUrl: 'https://placehold.co/100x100/4169E1/FFFFFF?text=休息', aiPrompt: 'A child covered in a soft blanket, resting with eyes closed. Calm and peaceful cartoon illustration.' }, 
+                ],
+                bgClass: 'bg-blue-200'
+            },
+            'GRIEF': {
+                name: '悲傷 😭',
+                color: 'bg-purple-500 hover:bg-purple-600',
+                methods: [
+                    // 靜態活動或求助
+                    { icon: '😢', text: '哭出來/讓眼淚流', imageUrl: 'https://placehold.co/100x100/8A2BE2/FFFFFF?text=哭泣', aiPrompt: 'A simple cartoon drawing of a child with tears flowing down, expressive and sad. Sympathetic mood.' }, 
+                    { icon: '🧘', text: '躺平休息/閉上眼睛', imageUrl: 'https://placehold.co/100x100/8A2BE2/FFFFFF?text=躺著', aiPrompt: 'A peaceful, simple cartoon illustration of a child lying down with closed eyes, focusing on stillness.' }, 
+                    { icon: '📞', text: '按鈴/呼叫協助', imageUrl: 'https://placehold.co/100x100/8A2BE2/FFFFFF?text=呼叫', aiPrompt: 'A cartoon image of a large, easy-to-press call button or bell being reached for by a hand. Clear communication focus.' }, 
+                ],
+                bgClass: 'bg-purple-200'
+            },
+            'ANGRY': {
+                name: '生氣 😡',
+                color: 'bg-red-500 hover:bg-red-600',
+                methods: [
+                    // 靜態活動
+                    { icon: '💨', text: '深呼吸 10 次', imageUrl: 'https://placehold.co/100x100/FF4500/FFFFFF?text=深呼吸', aiPrompt: 'A simple cartoon showing a child inhaling deeply, with big clear air movement lines. Focus on calming down.' }, 
+                    { icon: '👀', text: '數數/看喜歡的東西', imageUrl: 'https://placehold.co/100x100/FF4500/FFFFFF?text=數數', aiPrompt: 'A child looking at a simple picture book or toy with focused eyes. Cartoon style.' }, 
+                    { icon: '👊', text: '捏壓力球或抱枕', imageUrl: 'https://placehold.co/100x100/FF4500/FFFFFF?text=捏抱枕', aiPrompt: 'A close-up of a hand tightly squeezing a brightly colored stress ball or pillow. Simple illustration of tension release.' }, 
+                ],
+                bgClass: 'bg-red-200'
+            }
+        };
+
+        const scenarios = [
+            { text: '你在學校得到了一朵小紅花獎勵', correct: 'HAPPY', imageUrl: 'https://placehold.co/400x200/4CAF50/FFFFFF?text=得到獎勵+Star', aiPrompt: 'A simple, bright, and colorful cartoon drawing of a smiling child in a wheelchair holding up a red flower sticker in a classroom setting. Cute style, clean lines.' },
+            { text: '你最喜歡的玩具被弟弟弄壞了', correct: 'ANGRY', imageUrl: 'https://placehold.co/400x200/FF5733/FFFFFF?text=玩具壞掉+Broken+Toy', aiPrompt: 'A cartoon drawing of a broken toy block tower next to a child with an upset face. Vibrant colors, simple shapes.' },
+            { text: '媽媽今天沒有給你最喜歡的點心', correct: 'SAD', imageUrl: 'https://placehold.co/400x200/F0E68C/000000?text=沒有點心+No+Snack', aiPrompt: 'A child looking sadly at an empty plate. Simple, soft cartoon style.' },
+            { text: '你跌倒了，膝蓋有一點點痛', correct: 'SAD', imageUrl: 'https://placehold.co/400x200/ADD8E6/000000?text=跌倒受傷+Fall+Hurt', aiPrompt: 'A cartoon child sitting down gently rubbing a knee, with a small tear in their eye. Soft colors, focused on comfort.' },
+            { text: '老師稱讚你今天在課堂上表現很棒', correct: 'HAPPY', imageUrl: 'https://placehold.co/400x200/87CEFA/FFFFFF?text=老師稱讚+Praise', aiPrompt: 'A bright cartoon image of a teacher giving a thumbs up to a child. Happy and positive mood.' },
+            { text: '好朋友把你的積木不小心弄倒了', correct: 'ANGRY', imageUrl: 'https://placehold.co/400x200/F08080/FFFFFF?text=積木倒塌+Blocks+Tumble', aiPrompt: 'A cartoon image showing scattered blocks and a child making an angry face. Simple and direct illustration.' },
+            { text: '你聽到一個很難過的消息，想哭', correct: 'GRIEF', imageUrl: 'https://placehold.co/400x200/4682B4/FFFFFF?text=難過想哭+Sad+Tear', aiPrompt: 'A cartoon child with a stream of tears, sitting down and looking very sad. Gentle, sympathetic colors.' },
+            { text: '其他小朋友今天決定不跟你一起玩', correct: 'SAD', imageUrl: 'https://placehold.co/400x200/B0C4DE/000000?text=被排擠+Excluded', aiPrompt: 'A cartoon image of a child looking away while two other children play, simple sad expression. Focus on soft sadness.' },
+            { text: '你完成了一個很難的任務，覺得很有成就感', correct: 'HAPPY', imageUrl: 'https://placehold.co/400x200/20B2AA/FFFFFF?text=完成任務+Mission+Complete', aiPrompt: 'A victorious cartoon child raising their fist in the air next to a finished puzzle or project. Bright and celebratory.' },
+            { text: '你最愛的小動物生病了，你很擔心', correct: 'GRIEF', imageUrl: 'https://placehold.co/400x200/6A5ACD/FFFFFF?text=寵物生病+Pet+Sick', aiPrompt: 'A simple cartoon drawing of a child gently petting a small, sad-looking puppy in a bed. Soft and caring mood.' },
+            { text: '外面下大雨，不能出去玩了', correct: 'SAD', imageUrl: 'https://placehold.co/400x200/A9A9A9/FFFFFF?text=下雨了+Rain+Puddles', aiPrompt: 'A cartoon child looking out a window at heavy rain, simple expression of disappointment. Blue and grey tones.' },
+            { text: '你在地上發現了一隻可愛的小貓', correct: 'HAPPY', imageUrl: 'https://placehold.co/400x200/FFD700/000000?text=發現小貓+Kitten+Find', aiPrompt: 'A joyful cartoon drawing of a child smiling at a small, curious kitten on the ground. Warm and happy colors.' },
+            { text: '有人插隊，沒有遵守規則', correct: 'ANGRY', imageUrl: 'https://placehold.co/400x200/DC143C/FFFFFF?text=有人插隊+Cut+Line', aiPrompt: 'A cartoon illustration of a child with a frustrated face watching another child cut in line. Clear expression of unfairness.' },
+            { text: '你弄丟了對你有意義的紀念品', correct: 'GRIEF', imageUrl: 'https://placehold.co/400x200/808080/FFFFFF?text=弄丟紀念品+Lost+Memory', aiPrompt: 'A child looking sadly at an empty hand or pocket. Simple, melancholic cartoon style.' },
+        ];
+
+        let currentScenario = null;
+        let selectedEmotionKey = null;
+        // 圖片快取，避免重複生成
+        const imageCache = {}; 
+
+        // --- DOM 元素快取 ---
+        const phases = {
+            0: document.getElementById('phase-0'),
+            1: document.getElementById('phase-1'),
+            2: document.getElementById('phase-2'),
+            3: document.getElementById('phase-3')
+        };
+        const scenarioText = document.getElementById('scenario-text');
+        const scenarioImage = document.getElementById('scenario-image'); 
+        const generateImageBtn = document.getElementById('generate-image-btn');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const emotionSelectionDiv = document.getElementById('emotion-selection');
+        const copingSelectionDiv = document.getElementById('coping-selection');
+        const selectedEmotionText = document.getElementById('selected-emotion-text');
+        const mainCard = document.querySelector('.card-container');
+
+
+        // --- API 相關工具函數 ---
+
+        const apiKey = ""; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+
+        /** * 呼叫 Imagen API 生成圖片 
+         * @param {string} prompt 
+         * @param {string} aspectRatio 
+         */
+        async function callImageAPI(prompt, aspectRatio = "16:9") {
+            const cacheKey = prompt + aspectRatio;
+            if (imageCache[cacheKey]) {
+                return imageCache[cacheKey];
+            }
+
+            const payload = { 
+                instances: [{ prompt: prompt }], 
+                parameters: { "sampleCount": 1, "aspectRatio": aspectRatio } 
+            };
+            
+            // 處理指數退避
+            const maxRetries = 3;
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                        const base64Data = result.predictions[0].bytesBase64Encoded;
+                        const imageUrl = `data:image/png;base64,${base64Data}`;
+                        imageCache[cacheKey] = imageUrl; // 存入快取
+                        return imageUrl;
+                    } else {
+                        throw new Error('Image generation failed: No base64 data received.');
+                    }
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                    if (i < maxRetries - 1) {
+                        const delay = Math.pow(2, i) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        throw new Error('Image generation failed after multiple retries.');
+                    }
+                }
+            }
+        }
+
+        /** 處理情境圖片生成 */
+        async function generateScenarioImage() {
+            if (!currentScenario || !currentScenario.aiPrompt) {
+                // 使用自定義訊息框代替 alert
+                const messageBox = document.createElement('div');
+                messageBox.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+                messageBox.innerHTML = '<div class="bg-white p-6 rounded-lg shadow-xl text-center"><p class="font-bold text-red-500 mb-4">錯誤</p><p>請先抽取情境卡片！</p><button onclick="this.parentNode.parentNode.remove()" class="mt-4 bg-red-500 text-white py-2 px-4 rounded">確定</button></div>';
+                document.body.appendChild(messageBox);
+                return;
+            }
+
+            // 顯示載入狀態，隱藏按鈕
+            generateImageBtn.classList.add('hidden');
+            loadingIndicator.classList.remove('hidden');
+            scenarioImage.src = 'https://placehold.co/400x200/94A3B8/FFFFFF?text=AI+生成中...'; // 載入中的佔位圖
+
+            try {
+                // 使用 16:9 比例生成情境圖
+                const imageUrl = await callImageAPI(currentScenario.aiPrompt, "16:9");
+                scenarioImage.src = imageUrl;
+            } catch (error) {
+                console.error('Error generating image:', error);
+                // 顯示錯誤訊息
+                scenarioImage.src = 'https://placehold.co/400x200/EF4444/FFFFFF?text=AI+生成失敗'; 
+            } finally {
+                // 隱藏載入狀態，顯示按鈕
+                loadingIndicator.classList.add('hidden');
+                generateImageBtn.classList.remove('hidden');
+            }
+        }
+
+
+        // --- 核心邏輯函數 ---
+
+        /** 顯示特定階段並隱藏其他 */
+        function showPhase(phase) {
+            Object.values(phases).forEach(el => el.classList.add('hidden'));
+            phases[phase].classList.remove('hidden');
+        }
+
+        /** 重置應用程式狀態並回到初始畫面 */
+        function resetApp() {
+            currentScenario = null;
+            selectedEmotionKey = null;
+            mainCard.classList.remove(...Object.values(emotions).map(e => e.bgClass));
+            
+            // 重置圖片顯示為預設佔位符
+            scenarioImage.src = ''; 
+            generateImageBtn.classList.remove('hidden');
+            loadingIndicator.classList.add('hidden');
+
+            showPhase(0);
+        }
+
+        /** 隨機抽一張情境卡 */
+        function drawCard() {
+            // 清除上次生成的情境圖快取
+            scenarioImage.src = ''; 
+
+            const randomIndex = Math.floor(Math.random() * scenarios.length);
+            currentScenario = scenarios[randomIndex];
+
+            scenarioText.textContent = currentScenario.text;
+            scenarioImage.src = currentScenario.imageUrl; // 靜態佔位圖作為回退
+            generateImageBtn.classList.remove('hidden');
+            loadingIndicator.classList.add('hidden');
+
+            renderEmotionButtons();
+            showPhase(1);
+        }
+
+        /** 渲染情緒選擇按鈕 (圖示優先) */
+        function renderEmotionButtons() {
+            emotionSelectionDiv.innerHTML = '';
+            const emotionKeys = Object.keys(emotions).sort(() => Math.random() - 0.5);
+
+            emotionKeys.forEach(key => {
+                const emotion = emotions[key];
+                const button = document.createElement('button');
+                button.className = `emotion-btn ${emotion.color} text-white font-bold p-4 sm:p-6 rounded-xl shadow-md transition duration-150 ease-in-out flex flex-col items-center space-y-2`;
+                button.setAttribute('onclick', `selectEmotion('${key}')`);
+                button.innerHTML = `
+                    <span class="emotion-icon">${emotion.name.split(' ')[1]}</span>
+                    <span class="text-lg sm:text-xl">${emotion.name.split(' ')[0]}</span>
+                `;
+                emotionSelectionDiv.appendChild(button);
+            });
+        }
+
+        /** 選擇情緒 (Phase 1 -> Phase 2) */
+        function selectEmotion(key) {
+            selectedEmotionKey = key;
+            const emotion = emotions[key];
+
+            selectedEmotionText.innerHTML = `你選了：<span class="text-white p-2 rounded-lg ${emotion.color}">${emotion.name}</span>`;
+
+            // 渲染處理方法按鈕 (帶有初始佔位圖)
+            renderCopingMethods(emotion);
+            // 異步啟動 AI 圖片生成
+            generateCopingMethodImages(key);
+
+            mainCard.classList.remove(...Object.values(emotions).map(e => e.bgClass));
+            mainCard.classList.add(emotion.bgClass);
+            
+            showPhase(2);
+        }
+
+        /** 異步生成並載入處理方法圖片 */
+        async function generateCopingMethodImages(emotionKey) {
+            const methods = emotions[emotionKey].methods;
+            const buttons = copingSelectionDiv.querySelectorAll('.coping-btn');
+            
+            // 將所有按鈕切換到載入狀態
+            buttons.forEach(btn => btn.classList.add('image-loading'));
+
+            const generationPromises = methods.map((method, index) => {
+                const imgElement = buttons[index].querySelector('img');
+
+                return callImageAPI(method.aiPrompt, "1:1") // 1:1 比例用於方法圖示
+                    .then(imageUrl => {
+                        imgElement.src = imageUrl;
+                        imgElement.classList.remove('image-loading'); // 移除 loading 樣式
+                        buttons[index].classList.remove('image-loading');
+                    })
+                    .catch(error => {
+                        console.error(`Method ${method.text} image generation failed:`, error);
+                        imgElement.src = 'https://placehold.co/100x100/EF4444/FFFFFF?text=圖失敗';
+                        buttons[index].classList.remove('image-loading');
+                    });
+            });
+
+            // 等待所有圖片載入完成 (或失敗)
+            await Promise.allSettled(generationPromises);
+        }
+
+
+        /** 渲染處理情緒的方法按鈕 (圖文並茂) */
+        function renderCopingMethods(emotion) {
+            copingSelectionDiv.innerHTML = '';
+            // 將方法隨機排序
+            const methods = emotion.methods.sort(() => Math.random() - 0.5);
+
+            methods.forEach((method, index) => {
+                const button = document.createElement('button');
+                // 初始時加入 image-loading 類別
+                button.className = `coping-btn ${emotion.color} text-white font-bold p-4 rounded-xl shadow-lg transition duration-150 ease-in-out flex flex-col items-center justify-center space-y-2 text-lg h-48 sm:h-56 image-loading`; 
+                button.setAttribute('onclick', `selectCopingMethod('${method.text}')`);
+                button.innerHTML = `
+                    <img src="https://placehold.co/100x100/6B7280/FFFFFF?text=載入中..." alt="${method.text}" class="rounded-lg border-2 border-white/50">
+                    <span class="coping-icon">${method.icon}</span>
+                    <span class="text-base sm:text-lg">${method.text}</span>
+                `;
+                copingSelectionDiv.appendChild(button);
+            });
+        }
+
+        /** 選擇處理情緒的方法 (Phase 2 -> Phase 3) */
+        function selectCopingMethod(methodText) {
+            console.log(`孩子選擇了處理方法: ${methodText}`);
+            
+            // 進入完成/回饋階段
+            showPhase(3);
+        }
+
+        // --- 應用程式啟動 ---
+        // 初始載入時顯示階段 0
+        document.addEventListener('DOMContentLoaded', resetApp);
+    </script>
+</body>
+</html>
